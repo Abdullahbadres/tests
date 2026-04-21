@@ -1,0 +1,27 @@
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Dependencies
+**/node_modules/
+**/vendor/
+
+# Build artifacts
+**/.next/
+**/dist/
+**/build/
+
+# Logs
+**/*.log
+
+# Local runtime/storage
+**/storage/logs/*.log
+**/storage/framework/cache/**
+**/storage/framework/sessions/**
+**/storage/framework/views/**
+
