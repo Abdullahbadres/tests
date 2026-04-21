@@ -7,6 +7,11 @@ Thumbs.db
 **/.env
 **/.env.*
 
+# Local deploy secrets (never commit)
+.azure/test-deploy-secrets.local.txt
+.azure/**/*.local.*
+**/*.params.local.json
+
 # Dependencies
 **/node_modules/
 **/vendor/

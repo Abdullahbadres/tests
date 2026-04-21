@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Home, RotateCcw, SearchX, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 function MissingPlanetIllustration() {
   return (
@@ -54,12 +55,14 @@ export function NotFoundView() {
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button asChild size="lg" className="gap-2" data-testid="not-found-action-home">
-            <Link href="/">
-              <Home className="h-4 w-4" />
-              Take me home
-            </Link>
-          </Button>
+          <Link
+            href="/"
+            data-testid="not-found-action-home"
+            className={cn(buttonVariants({ size: "lg" }), "inline-flex items-center justify-center gap-2")}
+          >
+            <Home className="h-4 w-4" />
+            Take me home
+          </Link>
           <Button
             size="lg"
             variant="outline"
