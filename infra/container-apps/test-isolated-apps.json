@@ -1,0 +1,297 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.42.1.51946",
+      "templateHash": "11383383870614790815"
+    }
+  },
+  "parameters": {
+    "namePrefix": {
+      "type": "string",
+      "defaultValue": "testca",
+      "minLength": 2,
+      "maxLength": 12
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "managedPostgresFqdn": {
+      "type": "string",
+      "metadata": {
+        "description": "Existing PostgreSQL Flexible FQDN (no port)"
+      }
+    },
+    "backendImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Full backend image ref, e.g. myacr.azurecr.io/test-api:v1"
+      }
+    },
+    "frontendImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Full frontend image ref — rebuild with NEXT_PUBLIC_API_URL after first deploy for correct client bundle"
+      }
+    },
+    "useAcr": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Pull images from private ACR"
+      }
+    },
+    "acrLoginServer": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "acrUsername": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "acrPassword": {
+      "type": "securestring",
+      "defaultValue": ""
+    },
+    "laravelDbPassword": {
+      "type": "securestring"
+    },
+    "laravelAppKey": {
+      "type": "securestring"
+    }
+  },
+  "variables": {
+    "logName": "[format('{0}-aca-law', parameters('namePrefix'))]",
+    "envName": "[format('{0}-cae', parameters('namePrefix'))]",
+    "backendAppName": "[format('{0}-api', parameters('namePrefix'))]",
+    "frontendAppName": "[format('{0}-web', parameters('namePrefix'))]",
+    "hasAcr": "[and(and(parameters('useAcr'), not(empty(parameters('acrLoginServer')))), not(empty(parameters('acrUsername'))))]",
+    "backendSecrets": "[if(variables('hasAcr'), createArray(createObject('name', 'db-password', 'value', parameters('laravelDbPassword')), createObject('name', 'app-key', 'value', parameters('laravelAppKey')), createObject('name', 'acr-password', 'value', parameters('acrPassword'))), createArray(createObject('name', 'db-password', 'value', parameters('laravelDbPassword')), createObject('name', 'app-key', 'value', parameters('laravelAppKey'))))]",
+    "backendRegistries": "[if(variables('hasAcr'), createArray(createObject('server', parameters('acrLoginServer'), 'username', parameters('acrUsername'), 'passwordSecretRef', 'acr-password')), createArray())]",
+    "frontendSecrets": "[if(variables('hasAcr'), createArray(createObject('name', 'acr-password', 'value', parameters('acrPassword'))), createArray())]",
+    "frontendRegistries": "[if(variables('hasAcr'), createArray(createObject('server', parameters('acrLoginServer'), 'username', parameters('acrUsername'), 'passwordSecretRef', 'acr-password')), createArray())]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2022-10-01",
+      "name": "[variables('logName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('envName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('logName')), '2022-10-01').customerId]",
+            "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('logName')), '2022-10-01').primarySharedKey]"
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('backendAppName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('envName'))]",
+        "configuration": {
+          "ingress": {
+            "external": true,
+            "targetPort": 8080,
+            "transport": "auto"
+          },
+          "secrets": "[variables('backendSecrets')]",
+          "registries": "[variables('backendRegistries')]"
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "laravel",
+              "image": "[parameters('backendImage')]",
+              "resources": {
+                "cpu": "[json('0.75')]",
+                "memory": "1.5Gi"
+              },
+              "env": [
+                {
+                  "name": "APP_NAME",
+                  "value": "AI Sales Page Generator API"
+                },
+                {
+                  "name": "APP_ENV",
+                  "value": "production"
+                },
+                {
+                  "name": "APP_DEBUG",
+                  "value": "false"
+                },
+                {
+                  "name": "APP_KEY",
+                  "secretRef": "app-key"
+                },
+                {
+                  "name": "APP_URL",
+                  "value": "[format('https://{0}', format('{0}.{1}', variables('backendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', variables('envName')), '2023-05-01').defaultDomain))]"
+                },
+                {
+                  "name": "LOG_CHANNEL",
+                  "value": "stderr"
+                },
+                {
+                  "name": "SESSION_DRIVER",
+                  "value": "cookie"
+                },
+                {
+                  "name": "CACHE_STORE",
+                  "value": "file"
+                },
+                {
+                  "name": "QUEUE_CONNECTION",
+                  "value": "sync"
+                },
+                {
+                  "name": "DB_CONNECTION",
+                  "value": "pgsql"
+                },
+                {
+                  "name": "DB_HOST",
+                  "value": "[parameters('managedPostgresFqdn')]"
+                },
+                {
+                  "name": "DB_PORT",
+                  "value": "5432"
+                },
+                {
+                  "name": "DB_DATABASE",
+                  "value": "laravel"
+                },
+                {
+                  "name": "DB_USERNAME",
+                  "value": "pgadmin"
+                },
+                {
+                  "name": "DB_SSLMODE",
+                  "value": "require"
+                },
+                {
+                  "name": "DB_PASSWORD",
+                  "secretRef": "db-password"
+                },
+                {
+                  "name": "FRONTEND_URL",
+                  "value": "[format('https://{0}', format('{0}.{1}', variables('frontendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', variables('envName')), '2023-05-01').defaultDomain))]"
+                },
+                {
+                  "name": "SANCTUM_STATEFUL_DOMAINS",
+                  "value": "[format('{0}.{1}', variables('frontendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', variables('envName')), '2023-05-01').defaultDomain)]"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 5
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('envName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('frontendAppName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('envName'))]",
+        "configuration": {
+          "ingress": {
+            "external": true,
+            "targetPort": 3000,
+            "transport": "auto"
+          },
+          "secrets": "[variables('frontendSecrets')]",
+          "registries": "[variables('frontendRegistries')]"
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "next",
+              "image": "[parameters('frontendImage')]",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": [
+                {
+                  "name": "NEXT_PUBLIC_API_URL",
+                  "value": "[format('https://{0}', format('{0}.{1}', variables('backendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', variables('envName')), '2023-05-01').defaultDomain))]"
+                },
+                {
+                  "name": "HOSTNAME",
+                  "value": "0.0.0.0"
+                },
+                {
+                  "name": "PORT",
+                  "value": "3000"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 5
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', variables('backendAppName'))]",
+        "[resourceId('Microsoft.App/managedEnvironments', variables('envName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "containerEnvironmentName": {
+      "type": "string",
+      "value": "[variables('envName')]"
+    },
+    "defaultDomain": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.App/managedEnvironments', variables('envName')), '2023-05-01').defaultDomain]"
+    },
+    "backendUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', format('{0}.{1}', variables('backendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', variables('envName')), '2023-05-01').defaultDomain))]"
+    },
+    "frontendUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', format('{0}.{1}', variables('frontendAppName'), reference(resourceId('Microsoft.App/managedEnvironments', variables('envName')), '2023-05-01').defaultDomain))]"
+    },
+    "backendAppNameOut": {
+      "type": "string",
+      "value": "[variables('backendAppName')]"
+    },
+    "frontendAppNameOut": {
+      "type": "string",
+      "value": "[variables('frontendAppName')]"
+    }
+  }
+}

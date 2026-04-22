@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 class AdminUserController extends Controller
 {
     /**
-     * Daftar semua user (read-only fields; tidak ada update role).
+     * List all users (read-only fields; no role updates).
      */
     public function index(Request $request)
     {
@@ -30,7 +30,7 @@ class AdminUserController extends Controller
     }
 
     /**
-     * Buat user baru (selalu role user). Tidak bisa set super_admin dari sini.
+     * Create a new user (always role user). Cannot set super_admin from here.
      */
     public function store(Request $request)
     {
@@ -51,7 +51,7 @@ class AdminUserController extends Controller
     }
 
     /**
-     * Hapus user. Super admin tidak boleh menghapus dirinya sendiri.
+     * Delete a user. Super admin cannot delete their own account.
      */
     public function destroy(Request $request, User $user)
     {

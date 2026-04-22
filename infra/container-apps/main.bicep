@@ -1,7 +1,7 @@
-// Azure Container Apps: environment + backend (Laravel) + frontend (Next.js)
-// Azure SQL: server & database Anda sudah ada — isi parameter SQL di bawah.
-// Build image backend:  docker build -f Dockerfile.aca -t <acr>/api:v1 --platform linux/amd64 laravel-api-app
-// Build image frontend: docker build --build-arg NEXT_PUBLIC_API_URL=https://<api-name>.<defaultDomain> -t <acr>/web:v1 --platform linux/amd64 frontend
+// Azure Container Apps: environment + Laravel backend + Next.js frontend
+// Azure SQL: use your existing server/database — fill SQL parameters below.
+// Backend image:  docker build -f Dockerfile.aca -t <acr>/api:v1 --platform linux/amd64 laravel-api-app
+// Frontend image: docker build --build-arg NEXT_PUBLIC_API_URL=https://<api-name>.<defaultDomain> -t <acr>/web:v1 --platform linux/amd64 frontend
 
 @minLength(2)
 @maxLength(26)
@@ -9,13 +9,13 @@ param namePrefix string
 
 param location string = resourceGroup().location
 
-@description('Full image ref, contoh: myacr.azurecr.io/aisales-api:v1')
+@description('Full image ref, e.g. myacr.azurecr.io/aisales-api:v1')
 param backendImage string
 
-@description('Full image ref, contoh: myacr.azurecr.io/aisales-web:v1')
+@description('Full image ref, e.g. myacr.azurecr.io/aisales-web:v1')
 param frontendImage string
 
-@description('Hostname Azure SQL, contoh: myserver.database.windows.net')
+@description('Azure SQL hostname, e.g. myserver.database.windows.net')
 param sqlServerFqdn string
 
 param sqlDatabaseName string
@@ -29,10 +29,10 @@ param appKey string
 
 param openAiApiKey string = ''
 
-@description('ACR login server, kosong jika image publik tanpa auth')
+@description('ACR login server; empty if public images without registry auth')
 param acrLoginServer string = ''
 
-@description('ACR username (admin user), kosong jika tidak pakai ACR')
+@description('ACR admin username; empty if not using ACR')
 param acrUsername string = ''
 
 @secure()

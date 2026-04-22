@@ -1,10 +1,10 @@
 #Requires -Version 5.1
 <#
-  Deploy cepat: Resource Group + App Service (Linux PHP 8.2) untuk Laravel API.
-  Jalankan SETELAH: az login
+  Quick deploy: resource group + Linux PHP 8.2 App Service for the Laravel API.
+  Run AFTER: az login
 
-  Contoh:
-    .\scripts\azure-quick-deploy.ps1 -ResourceGroup "rg-aisales-api" -Location "southeastasia" -AppName "aisales-api-unik123"
+  Example:
+    .\scripts\azure-quick-deploy.ps1 -ResourceGroup "rg-aisales-api" -Location "southeastasia" -AppName "aisales-api-unique123"
 #>
 param(
   [Parameter(Mandatory = $true)][string]$ResourceGroup,
@@ -18,7 +18,7 @@ $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $bicep = Join-Path $root 'infra\azure-laravel-webapp.bicep'
 
 if (-not (Test-Path $bicep)) {
-  Write-Error "File Bicep tidak ditemukan: $bicep"
+  Write-Error "Bicep file not found: $bicep"
 }
 
 az group create --name $ResourceGroup --location $Location | Out-Null
@@ -29,6 +29,6 @@ az deployment group create `
   --parameters appName=$AppName sku=$Sku location=$Location `
   --verbose
 
-Write-Host "`nSelesai. Buka Azure Portal -> Web App -> Configuration -> Application settings"
+Write-Host "`nDone. Azure Portal -> Web App -> Configuration -> Application settings"
 Write-Host "Set: APP_KEY, APP_URL=https://$AppName.azurewebsites.net, DB_*, SANCTUM_STATEFUL_DOMAINS, FRONTEND_URL, OPENAI_*"
-Write-Host "Lalu deploy kode Laravel (ZIP ke wwwroot atau pipeline) dan set document root ke /public jika perlu."
+Write-Host "Then deploy Laravel (ZIP to wwwroot or CI/CD) and set the document root to /public if needed."

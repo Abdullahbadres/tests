@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/register', RegisterController::class);
 Route::post('/login', LoginController::class);
-/** CSRF cookie: pakai route bawaan Sanctum di `/sanctum/csrf-cookie` (web), jangan duplikat di sini. */
+/** CSRF cookie: use Sanctum default `/sanctum/csrf-cookie` (web routes); do not duplicate here. */
 
 Route::middleware(['auth:sanctum', 'super_admin'])->prefix('admin')->group(function () {
     Route::get('/users', [AdminUserController::class, 'index']);

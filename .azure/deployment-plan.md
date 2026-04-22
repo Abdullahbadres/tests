@@ -1,74 +1,94 @@
 # Deployment plan — AI Sales (frontend + backend + database)
 
-**Status:** Ready for Validation  
-**Mode:** MODIFY  
-**Target utama:** **Azure Container Apps** (satu environment, dua aplikasi: Next.js + Laravel) + **Azure SQL** (sudah ada di subscription Anda)
-
-## Ringkasan arsitektur
-
-| Komponen | Path repo | Image Docker | Catatan |
-|----------|------------|---------------|---------|
-| Backend API | `laravel-api-app/` | `Dockerfile.aca` | PHP 8.3 + `pdo_sqlsrv` + MySQL ext; `PORT` 8080; `DB_CONNECTION=sqlsrv` |
-| Frontend | `frontend/` | `Dockerfile` | Next.js **standalone**; `NEXT_PUBLIC_API_URL` idealnya di-set saat **docker build** (`--build-arg`) |
-| Database | — | — | **Azure SQL** (parameter `sqlServerFqdn`, dll.). Bukan container di ACA. |
-
-Infra-as-code: `infra/container-apps/main.bicep`  
-Skrip bantu: `scripts/deploy-container-apps.ps1`
-
-## Prasyarat
-
-1. `az login` + subscription yang benar  
-2. **Azure Container Registry** (disarankan) — push image backend & frontend  
-3. **Azure SQL**: firewall mengizinkan akses dari Container Apps (sering pakai opsi *Allow Azure services* pada SQL, atau aturan firewall ke subnet/outbound—sesuaikan kebijakan Anda)  
-4. **Build-arg frontend**: setelah Anda tahu URL API publik, build image web dengan:
-
-   `docker build --build-arg NEXT_PUBLIC_API_URL=https://<prefix>-api.<defaultDomain> -t <acr>/web:v1 --platform linux/amd64 frontend`
-
-   URL `https://<prefix>-api.<...>` bisa Anda duga dari output deployment (`defaultDomain`) + nama app `namePrefix-api`, atau dari output `backendUrl` setelah deploy pertama.
-
-## Deploy infra (PowerShell)
-
-```powershell
-cd "C:\Users\F36\Documents\test"
-.\scripts\deploy-container-apps.ps1 `
-  -ResourceGroup "rg-aisales" `
-  -NamePrefix "aisales" `
-  -BackendImage "YOURACR.azurecr.io/aisales-api:v1" `
-  -FrontendImage "YOURACR.azurecr.io/aisales-web:v1" `
-  -SqlServerFqdn "YOURSERVER.database.windows.net" `
-  -SqlDatabaseName "YOURDB" `
-  -SqlAdminUsername "YOURUSER" `
-  -SqlAdminPassword (Read-Host -AsSecureString) `
-  -AppKey "base64:..." `
-  -AcrLoginServer "YOURACR.azurecr.io" `
-  -AcrUsername "YOURACR" `
-  -AcrPassword (Read-Host -AsSecureString)
-```
-
-Parameter `-OpenAiApiKey` opsional (string biasa di skrip; untuk produksi pertimbangkan Key Vault + secretRef nanti).
-
-## Setelah deploy
-
-1. `az deployment group show` / Portal → lihat **output** `backendUrl`, `frontendUrl`  
-2. Migrasi: dari mesin yang boleh ke SQL jalankan `php artisan migrate --force`, atau gunakan **revision command** / job sekali jalan  
-3. Pastikan `config/cors.php` mengizinkan origin frontend ACA  
-4. Jika browser masih memanggil API salah: **rebuild image frontend** dengan `--build-arg NEXT_PUBLIC_API_URL=...` lalu push tag baru + update revision image
-
-## Catatan App Service (lama)
-
-File `infra/azure-laravel-webapp.bicep` + `laravel-api-app/scripts/azure-quick-deploy.ps1` tetap ada untuk opsi **App Service** PHP; tidak wajib dipakai jika Anda full ACA.
-
-## Jika database Anda MySQL (bukan Azure SQL)
-
-Ubah env di `main.bicep` (atau override lewat Portal) menjadi `DB_CONNECTION=mysql` dan host/user Azure MySQL; image backend bisa pakai `Dockerfile` lama yang ada `pdo_pgsql` atau sesuaikan `Dockerfile.aca` (sudah ada `pdo_mysql`).
+**Primary path today:** **Azure Container Instances (ACI)** in resource group **`test`**, with **Azure Database for PostgreSQL Flexible**.
 
 ---
 
-## Kebijakan isolasi dari proyek PPIS (wajib dipahami)
+## Architecture (ACI)
 
-- **Tidak ada** frontend/backend/database/API proyek **baru** (`test`) yang boleh bergantung pada resource di **RG PPIS** atau Managed Environment ACA milik PPIS.
-- Container Apps **`test-backend`** dan **`test-frontend`** di RG `test` (yang sebelumnya memakai environment PPIS) telah **dihapus** dari Azure agar tidak lagi berbagi environment dengan PPIS.
-- Stack proyek **baru** yang independen: **Azure Container Instances (ACI)** — resource group **`test`**, container group **`test-fe-be-pg`**, definisi `infra/aci/test-isolated-stack.bicep`. **Dua** container: **`test-backend`**, **`test-frontend`** (image dari ACR Anda). **Database persisten**: **Azure Database for PostgreSQL Flexible** di RG `test` — **bukan** Postgres di dalam ACI. Nama server tidak di-hardcode di repo; isi **`POSTGRES_SERVER`** (nama pendek) + **`POSTGRES_PASSWORD`** + **`ACR_NAME`** + **`ACI_DNS_LABEL`** di `.azure/test-deploy-secrets.local.txt`; skrip deploy mengisi parameter `managedPostgresFqdn` saat `az deployment`.
-- Skrip `scripts/push-laravel-next-to-acr.ps1` **dinonaktifkan** (exit 2) agar tidak ada yang tidak sengaja men-deploy ke Container Apps lama.
+| Component | Repo path | Docker image | Notes |
+|-----------|-----------|--------------|--------|
+| Backend API | `laravel-api-app/` | `Dockerfile.postgres` | PHP 8.3 + `pdo_pgsql`; `PORT` 8080; `DB_CONNECTION=pgsql` |
+| Frontend | `frontend/` | `Dockerfile` | Next.js **standalone**; set `NEXT_PUBLIC_API_URL` at **docker build** (`--build-arg`) |
+| Database | — | — | **Azure PostgreSQL Flexible** (managed). Not Postgres inside ACI |
 
-**ACI singkat:** satu IP/DNS publik untuk grup; port **80** → frontend, **8080** → backend. **Database:** FQDN = `{POSTGRES_SERVER}.postgres.database.azure.com`, `DB_SSLMODE=require`, user/db `laravel` / `pgadmin` — password di secrets file (`POSTGRES_PASSWORD`).
+IaC: `infra/aci/test-isolated-stack.bicep`  
+Deploy: `scripts/deploy-aci-from-acr.ps1`
+
+---
+
+## Secrets (local only — do not commit)
+
+Create **`.azure/test-deploy-secrets.local.txt`** (one variable per line):
+
+- `ACR_NAME` — Azure Container Registry name in RG `test`
+- `POSTGRES_PASSWORD` — PostgreSQL admin password
+- `POSTGRES_SERVER` — short server name (without `.postgres.database.azure.com`)
+- `ACI_DNS_LABEL` — DNS label for the ACI public FQDN
+
+The deploy script derives `managedPostgresFqdn` from `POSTGRES_SERVER`.
+
+---
+
+## Prerequisites
+
+1. `az login` and the correct subscription  
+2. **Azure Container Registry** — push `test-api:v1` and `test-web:<tag>`  
+3. **PostgreSQL firewall** — allow access from ACI / your IP as needed (often a temporary `0.0.0.0` rule for dev; tighten for production)  
+4. **Frontend build-arg:** after you know the public API URL, build the web image with:
+
+   `docker build --build-arg NEXT_PUBLIC_API_URL=http://<ACI_DNS_LABEL>.southeastasia.azurecontainer.io:8080 -t <acr>.azurecr.io/test-web:v1 --platform linux/amd64 frontend`
+
+---
+
+## Deploy ACI (PowerShell)
+
+```powershell
+cd <repo-root>
+powershell -ExecutionPolicy Bypass -File scripts\deploy-aci-from-acr.ps1
+```
+
+Requires `laravel-api-app\.env` with `APP_KEY` and the secrets file above.
+
+**Public URLs**
+
+- API: `http://<ACI_DNS_LABEL>.southeastasia.azurecontainer.io:8080/`
+- Web: `http://<ACI_DNS_LABEL>.southeastasia.azurecontainer.io:3000/` (frontend listens on **3000**)
+
+---
+
+## After deploy
+
+1. In Azure Portal or `az deployment group show`, confirm the container group is **Running**.  
+2. Run migrations + seed against PostgreSQL (from a machine with Docker):
+
+   `powershell -ExecutionPolicy Bypass -File laravel-api-app\scripts\migrate-azure-postgres.ps1`
+
+3. Ensure `config/cors.php` allows the frontend origin (`FRONTEND_URL` is set by the ACI template).  
+4. If the SPA still calls the wrong API URL, **rebuild** the frontend image with the correct `--build-arg NEXT_PUBLIC_API_URL`, push, and redeploy ACI.
+
+---
+
+## Optional: Azure Container Apps
+
+- `infra/container-apps/test-isolated-apps.bicep` + `scripts/deploy-container-apps-test.ps1` create a **new** managed environment in RG `test`.  
+- Some subscriptions allow only **one** Container Apps environment; the deployment may fail until quota is increased.
+
+---
+
+## Legacy / alternate templates
+
+- **`infra/container-apps/main.bicep`** — older ACA + **Azure SQL** pattern (`scripts/deploy-container-apps.ps1`).  
+- **`infra/azure-laravel-webapp.bicep`** + **`laravel-api-app/scripts/azure-quick-deploy.ps1`** — App Service (PHP) option.
+
+---
+
+## Disabled script
+
+- **`scripts/push-laravel-next-to-acr.ps1`** exits with code **2**: it is a legacy placeholder. Use **`scripts/deploy-aci-from-acr.ps1`** and the build scripts under `scripts/` instead.
+
+---
+
+## MySQL instead of Azure SQL (ACA template only)
+
+If you use `main.bicep` with MySQL, change env to `DB_CONNECTION=mysql` and the Azure MySQL host/user; align the backend Dockerfile with `pdo_mysql` as needed.

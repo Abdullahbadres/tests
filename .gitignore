@@ -24,6 +24,9 @@ Thumbs.db
 # Logs
 **/*.log
 
+# Local toolchain / binaries (optional)
+/tools/
+
 # Local runtime/storage
 **/storage/logs/*.log
 **/storage/framework/cache/**

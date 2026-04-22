@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class LoginController extends Controller
 {
@@ -16,7 +17,9 @@ class LoginController extends Controller
         ]);
 
         if (! Auth::attempt($credentials)) {
-            /** 401 = salah email/password; 422 hanya untuk validasi input. */
+            /** 401 = invalid credentials; 422 is reserved for validation errors only. */
+            Log::warning('Login failed', ['email' => $credentials['email']]);
+
             return response()->json(['message' => 'Invalid email or password.'], 401);
         }
 

@@ -5,14 +5,14 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "12253191331295990238"
+      "templateHash": "1290805720914061819"
     }
   },
   "parameters": {
     "managedPostgresFqdn": {
       "type": "string",
       "metadata": {
-        "description": "FQDN server PostgreSQL Flexible (isi dari skrip deploy; jangan hardcode nama server di repo publik)"
+        "description": "PostgreSQL Flexible server FQDN (pass from deploy script; do not hardcode server names in public repos)"
       }
     },
     "location": {
@@ -22,7 +22,7 @@
     "dnsNameLabel": {
       "type": "string",
       "metadata": {
-        "description": "Label DNS ACI (pertahankan saat update)"
+        "description": "ACI public DNS name label (keep stable across updates)"
       }
     },
     "backendImage": {
@@ -37,7 +37,7 @@
       "type": "bool",
       "defaultValue": false,
       "metadata": {
-        "description": "Tarik image dari ACR privat"
+        "description": "Pull images from private ACR"
       }
     },
     "acrLoginServer": {
@@ -57,6 +57,13 @@
     },
     "laravelAppKey": {
       "type": "securestring"
+    },
+    "frontendPullNonce": {
+      "type": "string",
+      "defaultValue": "1",
+      "metadata": {
+        "description": "Change every deploy (e.g. timestamp) so ACI re-pulls frontend image when tag is unchanged but digest changed."
+      }
     }
   },
   "variables": {
@@ -122,11 +129,15 @@
       },
       {
         "name": "FRONTEND_URL",
-        "value": "[format('http://{0}', variables('fqdn'))]"
+        "value": "[format('http://{0}:3000', variables('fqdn'))]"
       },
       {
         "name": "SANCTUM_STATEFUL_DOMAINS",
-        "value": "[variables('fqdn')]"
+        "value": "[format('{0}:3000', variables('fqdn'))]"
+      },
+      {
+        "name": "SESSION_SECURE_COOKIE",
+        "value": "false"
       },
       {
         "name": "APP_KEY",
@@ -141,6 +152,18 @@
       {
         "name": "NEXT_PUBLIC_API_URL",
         "value": "[format('http://{0}:8080', variables('fqdn'))]"
+      },
+      {
+        "name": "PORT",
+        "value": "3000"
+      },
+      {
+        "name": "HOSTNAME",
+        "value": "0.0.0.0"
+      },
+      {
+        "name": "ACI_DEPLOY_REVISION",
+        "value": "[parameters('frontendPullNonce')]"
       }
     ]
   },
@@ -160,7 +183,7 @@
           "dnsNameLabel": "[parameters('dnsNameLabel')]",
           "ports": [
             {
-              "port": 80,
+              "port": 3000,
               "protocol": "TCP"
             },
             {
@@ -201,7 +224,7 @@
               },
               "ports": [
                 {
-                  "port": 80,
+                  "port": 3000,
                   "protocol": "TCP"
                 }
               ],
@@ -247,7 +270,7 @@
     },
     "hint": {
       "type": "string",
-      "value": "Backend :8080, frontend :80. DB = Flexible PostgreSQL (SSL)."
+      "value": "Backend :8080, frontend :3000 (http://<fqdn>:3000/). DB = Flexible PostgreSQL (SSL)."
     }
   }
 }

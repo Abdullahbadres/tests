@@ -7,12 +7,12 @@ param acrName string
 @secure()
 param postgresAdminPassword string
 
-@description('Nama server PostgreSQL harus unik global (bukan hanya di RG)')
+@description('PostgreSQL server name must be globally unique (not only within the RG)')
 param postgresServerName string = 'test-postgre'
 
 param location string = resourceGroup().location
 
-@description('Lokasi PostgreSQL (subscription Anda diblokir eastus untuk Postgres — pakai southeastasia)')
+@description('PostgreSQL region (use southeastasia if eastus is blocked for Postgres in your subscription)')
 param postgresLocation string = 'southeastasia'
 
 resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {

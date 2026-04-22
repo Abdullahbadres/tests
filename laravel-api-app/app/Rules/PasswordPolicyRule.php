@@ -6,7 +6,7 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
- * Harus selaras dengan `frontend/src/lib/password-policy.ts` (passwordPolicyStringSchema).
+ * Must stay aligned with `frontend/src/lib/password-policy.ts` (passwordPolicyStringSchema).
  */
 class PasswordPolicyRule implements ValidationRule
 {

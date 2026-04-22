@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Harus sama dengan pola di `App\Rules\PasswordPolicyRule` (Laravel). */
+/** Must match the pattern rules in `App\Rules\PasswordPolicyRule` (Laravel). */
 export const SPECIAL_CHAR_REGEX = /[!@#$%^&*.,;:\/|\\}{\"'\]\[]/;
 
 export const passwordPolicyStringSchema = z

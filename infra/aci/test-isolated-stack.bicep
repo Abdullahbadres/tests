@@ -1,20 +1,19 @@
-// Stack proyek "test" — terpisah dari PPIS. ACI + PostgreSQL Flexible (managed).
-// Set useAcr=true + image ACR + kredensial untuk menarik image privat.
+// Test stack: ACI + managed Azure PostgreSQL Flexible. Set useAcr=true and ACR credentials for private images.
 
 targetScope = 'resourceGroup'
 
-@description('FQDN server PostgreSQL Flexible (isi dari skrip deploy; jangan hardcode nama server di repo publik)')
+@description('PostgreSQL Flexible server FQDN (pass from deploy script; do not hardcode server names in public repos)')
 param managedPostgresFqdn string
 
 param location string = 'southeastasia'
 
-@description('Label DNS ACI (pertahankan saat update)')
+@description('ACI public DNS name label (keep stable across updates)')
 param dnsNameLabel string
 
 param backendImage string = 'gcr.io/google-samples/hello-app:1.0'
 param frontendImage string = 'docker.io/library/nginx:alpine'
 
-@description('Tarik image dari ACR privat')
+@description('Pull images from private ACR')
 param useAcr bool = false
 
 param acrLoginServer string = ''
@@ -28,6 +27,9 @@ param laravelDbPassword string
 
 @secure()
 param laravelAppKey string
+
+@description('Change every deploy (e.g. timestamp) so ACI re-pulls frontend image when tag is unchanged but digest changed.')
+param frontendPullNonce string = '1'
 
 var cgName = 'test-fe-be-pg'
 var fqdn = '${dnsNameLabel}.${location}.azurecontainer.io'
@@ -57,14 +59,19 @@ var backendEnv = [
   { name: 'DB_DATABASE', value: 'laravel' }
   { name: 'DB_USERNAME', value: 'pgadmin' }
   { name: 'DB_SSLMODE', value: 'require' }
-  { name: 'FRONTEND_URL', value: 'http://${fqdn}' }
-  { name: 'SANCTUM_STATEFUL_DOMAINS', value: fqdn }
+  { name: 'FRONTEND_URL', value: 'http://${fqdn}:3000' }
+  { name: 'SANCTUM_STATEFUL_DOMAINS', value: '${fqdn}:3000' }
+  { name: 'SESSION_SECURE_COOKIE', value: 'false' }
   { name: 'APP_KEY', secureValue: laravelAppKey }
   { name: 'DB_PASSWORD', secureValue: laravelDbPassword }
 ]
 
+// Next runs non-root; cannot bind :80. Public port 3000 -> http://<fqdn>:3000/
 var frontendEnv = [
   { name: 'NEXT_PUBLIC_API_URL', value: 'http://${fqdn}:8080' }
+  { name: 'PORT', value: '3000' }
+  { name: 'HOSTNAME', value: '0.0.0.0' }
+  { name: 'ACI_DEPLOY_REVISION', value: frontendPullNonce }
 ]
 
 resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
@@ -79,7 +86,7 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
       type: 'Public'
       dnsNameLabel: dnsNameLabel
       ports: [
-        { port: 80, protocol: 'TCP' }
+        { port: 3000, protocol: 'TCP' }
         { port: 8080, protocol: 'TCP' }
       ]
     }
@@ -111,7 +118,7 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
             }
           }
           ports: [
-            { port: 80, protocol: 'TCP' }
+            { port: 3000, protocol: 'TCP' }
           ]
           environmentVariables: frontendEnv
         }
@@ -128,4 +135,4 @@ output laravelDbHost string = managedPostgresFqdn
 output laravelDbPort string = '5432'
 output laravelDbDatabase string = 'laravel'
 output laravelDbUsername string = 'pgadmin'
-output hint string = 'Backend :8080, frontend :80. DB = Flexible PostgreSQL (SSL).'
+output hint string = 'Backend :8080, frontend :3000 (http://<fqdn>:3000/). DB = Flexible PostgreSQL (SSL).'

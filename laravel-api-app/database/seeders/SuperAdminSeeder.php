@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 class SuperAdminSeeder extends Seeder
 {
     /**
-     * Akun super admin default (satu-satunya role super_admin dari seed).
+     * Default super admin account (only super_admin role from this seeder).
      */
     public function run(): void
     {

@@ -10,9 +10,9 @@ export interface PasswordChecklistItem {
 type ChecklistVariant = "default" | "profile";
 
 /**
- * Checklist kebutuhan password.
- * - `default`: selaras halaman Register (border halus).
- * - `profile`: kontras lebih jelas & teks lebih besar untuk dialog pengaturan akun.
+ * Password requirement checklist.
+ * - `default`: matches Register page styling (subtle border).
+ * - `profile`: higher contrast and larger text for account settings dialog.
  */
 export function PasswordRequirementChecklist({
   items,

@@ -1,17 +1,17 @@
-# AI Sales Page Generator API - Deployment Notes
+# AI Sales Page Generator API — deployment notes
 
-## Prasyarat Lokal
+## Local prerequisites
 
-1. Install PHP 8.2+
-2. Install Composer 2+
-3. Jalankan:
+1. PHP 8.2+
+2. Composer 2+
+3. Run:
    - `composer create-project laravel/laravel .`
    - `composer require laravel/sanctum openai-php/laravel`
    - `php artisan vendor:publish --provider="Laravel\\Sanctum\\SanctumServiceProvider"`
    - `php artisan queue:table`
    - `php artisan migrate`
 
-## Struktur Endpoint
+## API endpoints
 
 - `POST /api/register`
 - `POST /api/login`
@@ -28,20 +28,20 @@
 
 ## Railway
 
-1. Push repo ke GitHub.
-2. Railway -> New Project -> Deploy from GitHub.
-3. Add MySQL plugin.
-4. Isi env sesuai `.env.example`.
+1. Push the repo to GitHub.
+2. Railway → New Project → Deploy from GitHub.
+3. Add the MySQL plugin.
+4. Fill env vars from `.env.example`.
 5. Start command:
    - `php artisan serve --host=0.0.0.0 --port=$PORT`
-6. Procfile/worker command:
+6. Worker / Procfile:
    - `php artisan queue:work --daemon`
-7. Jalankan migration:
+7. Run migrations:
    - `php artisan migrate --force`
 
-## Integrasi dengan Vercel Frontend
+## Vercel frontend integration
 
-Set nilai berikut di Railway:
+Set these on Railway:
 
 - `FRONTEND_URL=https://your-app.vercel.app`
 - `SANCTUM_STATEFUL_DOMAINS=your-app.vercel.app,localhost:3000`

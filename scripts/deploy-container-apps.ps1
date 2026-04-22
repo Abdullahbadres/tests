@@ -1,10 +1,10 @@
 #Requires -Version 5.1
 <#
   Deploy Azure Container Apps (env + backend Laravel + frontend Next.js).
-  Jalankan SETELAH: az login
-  Build & push image ke ACR (atau registry lain) dulu.
+  Run AFTER: az login
+  Build and push images to ACR (or another registry) first.
 
-  Contoh:
+  Example:
     .\scripts\deploy-container-apps.ps1 `
       -ResourceGroup "rg-aisales" `
       -NamePrefix "aisales" `
@@ -40,7 +40,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 $bicep = Join-Path $root "infra\container-apps\main.bicep"
 
-if (-not (Test-Path $bicep)) { Write-Error "Tidak ditemukan: $bicep" }
+if (-not (Test-Path $bicep)) { Write-Error "Not found: $bicep" }
 
 $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SqlAdminPassword)
 $plainSql = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
@@ -81,5 +81,5 @@ if ($AcrLoginServer -and $AcrUsername -and $plainAcr) {
 
 az deployment group create @params --verbose
 
-Write-Host "`nSelesai. Cek output deployment untuk backendUrl / frontendUrl."
-Write-Host "Jalankan migrasi: az containerapp exec ... atau dari mesin lokal ke Azure SQL setelah firewall mengizinkan IP Anda."
+Write-Host "`nDone. Check deployment output for backendUrl / frontendUrl."
+Write-Host "Run migrations: az containerapp exec ... or from your machine to Azure SQL after the firewall allows your IP."

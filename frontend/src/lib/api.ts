@@ -3,8 +3,8 @@ import axios, { isAxiosError } from "axios";
 const baseURL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
- * Sanctum: panggil endpoint resmi Laravel (web middleware) — **tanpa** `withXSRFToken`
- * pada request ini, supaya tidak mengirim header X-XSRF-TOKEN lama yang bikin 419.
+ * Sanctum: call Laravel's official endpoint (web middleware) **without** `withXSRFToken`
+ * on this request, so an old X-XSRF-TOKEN header is not sent (avoids 419).
  */
 async function fetchSanctumCsrfCookie(): Promise<void> {
   await axios.get(`${baseURL}/sanctum/csrf-cookie`, {
@@ -59,7 +59,7 @@ api.interceptors.response.use(
 
 export default api;
 
-/** Pesan error dari body JSON Laravel: field pertama dari `errors`, lalu `message`. */
+/** First validation message from Laravel JSON `errors`, else `message`. */
 export function getAxiosErrorMessage(error: unknown, fallback = "Request failed"): string {
   if (isAxiosError(error)) {
     const data = error.response?.data as

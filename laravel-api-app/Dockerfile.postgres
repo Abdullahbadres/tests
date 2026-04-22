@@ -1,7 +1,7 @@
-# Cepat untuk Azure PostgreSQL (tanpa ODBC SQL Server)
+# Slim image for Azure PostgreSQL (no ODBC SQL Server)
 FROM php:8.3-cli-bookworm
 
-# libonig-dev: wajib agar configure mbstring menemukan oniguruma (error ONIG_CFLAGS di Bookworm)
+# libonig-dev: required so mbstring configure finds oniguruma (fixes ONIG_CFLAGS on Bookworm)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libpq-dev \

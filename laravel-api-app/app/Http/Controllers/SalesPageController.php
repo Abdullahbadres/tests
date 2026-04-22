@@ -50,7 +50,7 @@ class SalesPageController extends Controller
                 str_contains($msg, 'no column named')
             ) {
                 return response()->json([
-                    'message' => 'Skema basis data belum sinkron (kolom currency/UOM belum ada). Jalankan: php artisan migrate pada folder laravel-api-app, lalu restart php artisan serve.',
+                    'message' => 'Database schema is out of sync (currency/UOM columns missing). Run: php artisan migrate in the laravel-api-app folder, then restart php artisan serve.',
                 ], 503);
             }
 

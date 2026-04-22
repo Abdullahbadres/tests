@@ -77,7 +77,7 @@ resource laravelDb 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2022-12-
   }
 }
 
-// Sementara untuk deploy cepat — sesiarkan ke IP / VNet sebelum produksi
+// Temporary wide firewall for quick deploy — restrict to IP/VNet before production
 resource pgFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2022-12-01' = {
   parent: postgres
   name: 'allow-all-temp'
