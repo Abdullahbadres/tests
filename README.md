@@ -156,4 +156,3 @@ More detail: **`.azure/deployment-plan.md`** and **`ENV_SETUP.md`** (local env +
 
 ## License & contributors
 
-Update as appropriate for your team.
