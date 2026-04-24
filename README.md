@@ -109,8 +109,8 @@ Default seeded admin (change in `database/seeders/SuperAdminSeeder.php` if neede
 
 | Field | Value |
 |-------|--------|
-| Email | `superadmin@mail.com` |
-| Password | `administratorSuper.0` |
+| Email | `` |
+| Password | `` |
 
 ---
 
